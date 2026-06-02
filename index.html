@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Garbage Detection System</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, sans-serif;
+}
+
+body{
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:linear-gradient(135deg,#f8fafc,#e2e8f0);
+}
+
+.container{
+    width:90%;
+    max-width:700px;
+    background:white;
+    padding:30px;
+    border-radius:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.1);
+    text-align:center;
+}
+
+h1{
+    margin-bottom:20px;
+    color:#1e293b;
+}
+
+#webcam-container{
+    margin:20px auto;
+}
+
+canvas{
+    border-radius:15px;
+    border:3px solid #ddd;
+}
+
+.buttons{
+    margin:20px 0;
+}
+
+button{
+    padding:12px 25px;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:16px;
+    margin:5px;
+}
+
+.start-btn{
+    background:#2563eb;
+    color:white;
+}
+
+.stop-btn{
+    background:#dc2626;
+    color:white;
+}
+
+.result{
+    margin-top:20px;
+    padding:20px;
+    border-radius:15px;
+    background:#f1f5f9;
+}
+
+.result h2{
+    color:#0f172a;
+    margin-bottom:10px;
+}
+
+#prediction{
+    font-size:28px;
+    font-weight:bold;
+    color:#16a34a;
+}
+
+#confidence{
+    margin-top:10px;
+    font-size:18px;
+    color:#475569;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+    <h1>🗑 Garbage Detection System</h1>
+
+    <div class="buttons">
+        <button class="start-btn" onclick="init()">Start Camera</button>
+        <button class="stop-btn" onclick="stopCamera()">Stop Camera</button>
+    </div>
+
+    <div id="webcam-container"></div>
+
+    <div class="result">
+        <h2>Prediction</h2>
+        <div id="prediction">Waiting...</div>
+        <div id="confidence">0%</div>
+    </div>
+
+</div>
+
+<script>
+
+const URL = "https://teachablemachine.withgoogle.com/models/tUY1Sm6vR/";
+
+let model;
+let webcam;
+let running = false;
+
+async function init() {
+
+    if(running) return;
+
+    const modelURL = URL + "model.json";
+    const metadataURL = URL + "metadata.json";
+
+    model = await tmImage.load(modelURL, metadataURL);
+
+    webcam = new tmImage.Webcam(300,300,true);
+
+    await webcam.setup();
+    await webcam.play();
+
+    running = true;
+
+    document.getElementById("webcam-container").innerHTML = "";
+    document.getElementById("webcam-container")
+            .appendChild(webcam.canvas);
+
+    window.requestAnimationFrame(loop);
+}
+
+async function loop() {
+
+    if(!running) return;
+
+    webcam.update();
+
+    await predict();
+
+    window.requestAnimationFrame(loop);
+}
+
+async function predict() {
+
+    const predictions = await model.predict(webcam.canvas);
+
+    let highest = predictions[0];
+
+    for(let i=1;i<predictions.length;i++){
+        if(predictions[i].probability > highest.probability){
+            highest = predictions[i];
+        }
+    }
+
+    document.getElementById("prediction").innerHTML =
+        highest.className;
+
+    document.getElementById("confidence").innerHTML =
+        "Confidence: " +
+        (highest.probability * 100).toFixed(2) + "%";
+}
+
+function stopCamera(){
+
+    running = false;
+
+    if(webcam){
+        webcam.stop();
+    }
+
+    document.getElementById("prediction").innerHTML =
+        "Camera Stopped";
+
+    document.getElementById("confidence").innerHTML =
+        "";
+
+    document.getElementById("webcam-container").innerHTML = "";
+}
+
+</script>
+
+</body>
+</html>
